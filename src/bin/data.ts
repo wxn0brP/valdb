@@ -32,15 +32,15 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
     const existingCollection = findCollection(result, collection);
     const encoded = Buffer.from(await encodeData(data));
     const length = encoded.length;
-    const capacity = roundUpCapacity(length);
+    const capacity = roundUpCapacity(result, length);
 
     let offset = existingCollection?.offset;
     let existingOffset = existingCollection?.offset;
     let existingCapacity = existingCollection?.capacity;
 
-    const collision = detectCollisions(result, offset, capacity);
+    const collision = detectCollisions(result, offset, capacity, [collection]);
     if (collision || !existingCollection) {
-        await _log("Collision detected");
+        if (collision) await _log("Collision detected");
         const slot = await findFreeSlot(result, capacity);
         if (slot) {
             offset = slot.offset;
@@ -64,10 +64,11 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
         }
         
         await _log("Collection written");
-        await saveHeaderAndPayload(fd, result);
     }
 
+    if (existingCollection) existingCollection.length = length;
     await writeData(fd, offset, encoded, capacity);
+    await saveHeaderAndPayload(fd, result);
 }
 
 export async function readLogic(fd: FileHandle, result: OpenFileResult, collection: string) {

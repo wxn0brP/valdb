@@ -3,12 +3,11 @@ import dbActionBase from "@wxn0brp/db/base/actions.js";
 import Data from "@wxn0brp/db/types/data.js";
 import FileCpu from "@wxn0brp/db/types/fileCpu.js";
 import { VQuery } from "@wxn0brp/db/types/query.js";
-import { read, write } from "./fn";
 import { DbOpts } from "@wxn0brp/db/types/options.js";
 import { compareSafe } from "@wxn0brp/db/utils/sort.js";
-import { existsSync } from "fs";
+import { BinManager } from "./bin";
 
-export class OneFileAction extends dbActionBase {
+export class BinFileAction extends dbActionBase {
     folder: string;
     options: DbOpts;
     fileCpu: FileCpu;
@@ -19,26 +18,25 @@ export class OneFileAction extends dbActionBase {
      * @param folder - The folder where database files are stored.
      * @param options - The options object.
      */
-    constructor(private file: string) {
+    constructor(private mgr: BinManager) {
         super();
-        this.fileCpu = new CustomFileCpu(read, write);
+        this.fileCpu = new CustomFileCpu(this.mgr.read.bind(this.mgr), this.mgr.write.bind(this.mgr));
     }
 
     async init() {
-        if (!existsSync(this.file)) {
-            await write(this._getCollectionPath(null), {});
-        }
+        await this.mgr.open();
     }
 
     _getCollectionPath(collection: string) {
-        return JSON.stringify([this.file, collection]);
+        throw new Error("Method not implemented.");
+        return "";
     }
 
     /**
      * Get a list of available databases in the specified folder.
      */
     async getCollections() {
-        const collections = Object.keys(await read(this._getCollectionPath(null)));
+        const collections = this.mgr.openResult.collections.map(c => c.name);
         return collections;
     }
 
@@ -46,13 +44,11 @@ export class OneFileAction extends dbActionBase {
      * Check and create the specified collection if it doesn't exist.
      */
     async checkCollection({ collection }: VQuery) {
-        if (this.issetCollection(collection)) return;
-        const path = this._getCollectionPath(collection);
-        const data = await read(path);
-        data[collection] = data[collection] || [];
-        await write(path, data);
+        if (await this.issetCollection(arguments[0])) return;
+        await this.mgr.write(collection, []);
         return true;
     }
+    
     /**
      * Check if a collection exists.
      */
@@ -65,7 +61,6 @@ export class OneFileAction extends dbActionBase {
      * Add a new entry to the specified database.
      */
     async add({ collection, data, id_gen = true }: VQuery) {
-        collection = this._getCollectionPath(collection);
         await this.checkCollection(arguments[0]);
 
         if (id_gen) data._id = data._id || genId();
@@ -77,7 +72,6 @@ export class OneFileAction extends dbActionBase {
      * Find entries in the specified database based on search criteria.
      */
     async find({ collection, search, context = {}, dbFindOpts = {}, findOpts = {} }: VQuery) {
-        collection = this._getCollectionPath(collection);
         const {
             reverse = false,
             max = -1,
@@ -113,7 +107,6 @@ export class OneFileAction extends dbActionBase {
      * Find the first matching entry in the specified database based on search criteria.
      */
     async findOne({ collection, search, context = {}, findOpts = {} }: VQuery) {
-        collection = this._getCollectionPath(collection);
         await this.checkCollection(arguments[0]);
         let data = await this.fileCpu.findOne(collection, search, context, findOpts) as Data;
         return data || null;
@@ -123,7 +116,6 @@ export class OneFileAction extends dbActionBase {
      * Update entries in the specified database based on search criteria and an updater function or object.
      */
     async update({ collection, search, updater, context = {} }: VQuery) {
-        collection = this._getCollectionPath(collection);
         await this.checkCollection(arguments[0]);
         return await this.fileCpu.update(collection, false, search, updater, context);
     }
@@ -132,7 +124,6 @@ export class OneFileAction extends dbActionBase {
      * Update the first matching entry in the specified database based on search criteria and an updater function or object.
      */
     async updateOne({ collection, search, updater, context = {} }: VQuery) {
-        collection = this._getCollectionPath(collection);
         await this.checkCollection(arguments[0]);
         return await this.fileCpu.update(collection, true, search, updater, context);
     }
@@ -141,7 +132,6 @@ export class OneFileAction extends dbActionBase {
      * Remove entries from the specified database based on search criteria.
      */
     async remove({ collection, search, context = {} }: VQuery) {
-        collection = this._getCollectionPath(collection);
         await this.checkCollection(arguments[0]);
         return await this.fileCpu.remove(collection, false, search, context);
     }
@@ -150,7 +140,6 @@ export class OneFileAction extends dbActionBase {
      * Remove the first matching entry from the specified database based on search criteria.
      */
     async removeOne({ collection, search, context = {} }: VQuery) {
-        collection = this._getCollectionPath(collection);
         await this.checkCollection(arguments[0]);
         return await this.fileCpu.remove(collection, true, search, context);
     }
@@ -159,10 +148,7 @@ export class OneFileAction extends dbActionBase {
      * Removes a database collection from the file system.
      */
     async removeCollection({ collection }: VQuery) {
-        const path = this._getCollectionPath(collection);
-        const data = await read(path);
-        delete data[collection];
-        await write(path, data);
+        await this.mgr.removeCollection(collection);
         return true;
     }
 }

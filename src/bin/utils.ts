@@ -1,9 +1,8 @@
 import { FileHandle } from "fs/promises";
-import { SLOT_SIZE } from "./static";
-import { Block } from "./head";
+import { Block, OpenFileResult } from "./head";
 
-export function roundUpCapacity(size: number) {
-    return Math.ceil(size / SLOT_SIZE) * SLOT_SIZE;
+export function roundUpCapacity(result: OpenFileResult, size: number) {
+    return Math.ceil(size / result.blockSize) * result.blockSize;
 }
 
 export async function writeData(fd: FileHandle, offset: number, data: Buffer, capacity: number) {
@@ -71,18 +70,20 @@ function checkCollection(start1: number, end1: number, start2: number, end2: num
     return start1 < end2 && start2 < end1;
 }
 
-export function detectCollisions(result: any, start: number, size: number) {
-    for (const { offset, capacity } of result.collections) 
+export function detectCollisions(result: OpenFileResult, start: number, size: number, skip: string[] = []) {
+    for (const { name, offset, capacity } of result.collections) {
+        if (skip.includes(name)) continue;
         if (checkCollection(offset, offset + capacity, start, start + size)) 
             return true;
+    }
 
     return false;
 }
 
-export function pushToFreeList(result: any, offset: number, len: number) {
+export function pushToFreeList(result: OpenFileResult, offset: number, len: number) {
     result.freeList.push({
         offset,
-        capacity: roundUpCapacity(len),
+        capacity: roundUpCapacity(result, len),
     });
     result.freeList = optimizeFreeList(result.freeList);
 }

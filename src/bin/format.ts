@@ -1,18 +1,15 @@
 import * as msgpack from "@msgpack/msgpack";
 
-const isDev = process.env.NODE_ENV === "development";
-
 export async function encodeData(data: any) {
-    if (!isDev) return msgpack.encode(data);
+    if (process.env.USE_JSON !== "true") return msgpack.encode(data);
     // _log("[JSON]", "stringify", data);
-    // await new Promise(resolve => setTimeout(resolve, 3000));
     const string = JSON.stringify(data);
-    return Buffer.from(string);
+    return Buffer.from(string, "utf-8");
 }
 
 export async function decodeData(data: Buffer) {
-    if (!isDev) return msgpack.decode(data);
-    const string = data.toString();
+    if (process.env.USE_JSON !== "true") return msgpack.decode(data);
+    const string = data.toString("utf-8");
     // _log("[JSON]", "paring", string);
     return JSON.parse(string);
 }

@@ -2,6 +2,6 @@
 dist
 node_modules
 .suglite_history
-db.val
+*.val
 yarn.lock
 package-lock.json

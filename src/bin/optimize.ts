@@ -1,7 +1,7 @@
 import { unlink } from "fs/promises";
 import { BinManager } from ".";
 import { saveHeaderAndPayload } from "./head";
-import { HEADER_SIZE, SLOT_SIZE } from "./static";
+import { HEADER_SIZE } from "./static";
 import { readData, roundUpCapacity, writeData } from "./utils";
 
 export async function optimize(cmp: BinManager) {
@@ -18,18 +18,17 @@ export async function optimize(cmp: BinManager) {
     await new Promise(resolve => setTimeout(resolve, 100));
     await cmp.open();
 
-    let offset = roundUpCapacity(cmp.openResult.payloadLength + HEADER_SIZE) + SLOT_SIZE;
+    let offset = roundUpCapacity(cmp.openResult, cmp.openResult.payloadLength + HEADER_SIZE) + cmp.openResult.blockSize;
     for (const [collection, data] of allData) {
-        const len = roundUpCapacity(data.length);
-        await writeData(cmp.fd, offset, data, len);  
-        offset += len;
-
+        const len = roundUpCapacity(cmp.openResult, data.length);
+        await writeData(cmp.fd, offset, data, len);
         cmp.openResult.collections.push({
             name: collection,
             offset,
             length: data.length,
             capacity: len
         });
+        offset += len;
     }
 
     await saveHeaderAndPayload(cmp.fd, cmp.openResult);

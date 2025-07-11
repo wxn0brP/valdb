@@ -16,9 +16,10 @@ export interface OpenFileResult {
     fileSize: number;
     payloadLength: number;
     payloadOffset: number;
+    blockSize: number;
 }
 
-export async function openFile(fd: FileHandle) {
+export async function openFile(fd: FileHandle, preferredSize: number = 256) {
     const stats = await fd.stat();
     const fileSize = stats.size;
     await _log("File size:", fileSize);
@@ -29,6 +30,7 @@ export async function openFile(fd: FileHandle) {
         fileSize,
         payloadLength: 0,
         payloadOffset: 0,
+        blockSize: preferredSize
     }
 
     if (fileSize < HEADER_SIZE) {
@@ -56,6 +58,10 @@ export async function openFile(fd: FileHandle) {
     const payloadOffset = headerBuf.readUInt32LE(8);
     result.payloadOffset = payloadOffset;
     await _log("Payload offset:", payloadOffset);
+
+    const blockSize = headerBuf.readUInt32LE(12);
+    result.blockSize = blockSize;
+    await _log("Block size:", blockSize);
 
     if (payloadOffset + payloadLength > fileSize - HEADER_SIZE) {
         await _log("err", "Invalid payload length");
@@ -92,7 +98,7 @@ export async function readHeaderPayload(fd: FileHandle, result: OpenFileResult) 
     result.collections = (obj.c || []).map(([name, offset, length, capacity]) => ({ name, offset, length, capacity }));
     result.freeList = (obj.f || []).map(([offset, capacity]) => ({ offset, capacity }));
 
-    await _log("Collections and freeList loaded");
+    await _log("Collections and freeList loaded", result);
 }
 
 export function getHeaderPayload(result: OpenFileResult) {
@@ -121,6 +127,8 @@ export async function saveHeaderAndPayload(fd: FileHandle, result: OpenFileResul
     const headerBuf = Buffer.alloc(HEADER_SIZE);
     headerBuf.writeUInt32LE(VERSION, 0);
     headerBuf.writeUInt32LE(payloadBuf.length, 4);
+    headerBuf.writeUInt32LE(result.payloadOffset, 8);
+    headerBuf.writeUInt32LE(result.blockSize, 12);
     result.payloadLength = payloadBuf.length;
 
     // TODO add magic, flags, etc. here
@@ -130,7 +138,7 @@ export async function saveHeaderAndPayload(fd: FileHandle, result: OpenFileResul
     // Write header
     await fd.write(headerBuf, 0, HEADER_SIZE, 0);
     // Write payload
-    const roundPayload = roundUpCapacity(payloadBuf.length);
+    const roundPayload = roundUpCapacity(result, payloadBuf.length);
 
     if (detectCollisions(result, HEADER_SIZE + result.payloadOffset, roundPayload)) {
         await _log("Collision detected");
