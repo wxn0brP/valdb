@@ -56,23 +56,28 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
         } else if (collision) {
             pushToFreeList(result, existingOffset, existingCapacity);
             result.collections = result.collections.map(c => {
-                if (c.offset === existingOffset) {
-                    return { name: c.name, offset, capacity };
-                }
+                if (c.offset === existingOffset) return { name: c.name, offset, capacity };
                 return c;
             })
         }
-        
+
         await _log("Collection written");
         await saveHeaderAndPayload(fd, result);
     }
-
-    // if (existingCollection) existingCollection.length = length;
 
     const buf = Buffer.alloc(4);
     buf.writeInt32LE(length, 0);
     await writeData(fd, offset, buf, 4);
     await writeData(fd, offset + 4, encoded, capacity);
+
+    if (existingCollection && length >= existingCollection.capacity) {
+        result.collections = result.collections.map(c => {
+            if (c.offset === offset) return { name: c.name, offset, capacity };
+            return c;
+        });
+        await saveHeaderAndPayload(fd, result);
+        await _log("Capacity exceeded");
+    }
 }
 
 export async function readLogic(fd: FileHandle, result: OpenFileResult, collection: string) {
