@@ -32,7 +32,7 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
     const existingCollection = findCollection(result, collection);
     const encoded = Buffer.from(await encodeData(data));
     const length = encoded.length;
-    const capacity = roundUpCapacity(result, length);
+    const capacity = roundUpCapacity(result, length + 4);
 
     let offset = existingCollection?.offset;
     let existingOffset = existingCollection?.offset;
@@ -52,29 +52,34 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
         }
 
         if (!existingCollection) {
-            result.collections.push({ name: collection, offset, length, capacity });
+            result.collections.push({ name: collection, offset, capacity });
         } else if (collision) {
             pushToFreeList(result, existingOffset, existingCapacity);
             result.collections = result.collections.map(c => {
                 if (c.offset === existingOffset) {
-                    return { name: c.name, offset, length, capacity };
+                    return { name: c.name, offset, capacity };
                 }
                 return c;
             })
         }
         
         await _log("Collection written");
+        await saveHeaderAndPayload(fd, result);
     }
 
-    if (existingCollection) existingCollection.length = length;
-    await writeData(fd, offset, encoded, capacity);
-    await saveHeaderAndPayload(fd, result);
+    // if (existingCollection) existingCollection.length = length;
+
+    const buf = Buffer.alloc(4);
+    buf.writeInt32LE(length, 0);
+    await writeData(fd, offset, buf, 4);
+    await writeData(fd, offset + 4, encoded, capacity);
 }
 
 export async function readLogic(fd: FileHandle, result: OpenFileResult, collection: string) {
     const collectionMeta = findCollection(result, collection);
     if (!collectionMeta) throw new Error("Collection not found");
 
-    const data = await readData(fd, collectionMeta.offset, collectionMeta.length);
+    const len = await readData(fd, collectionMeta.offset, 4);
+    const data = await readData(fd, collectionMeta.offset + 4, len.readInt32LE(0));
     return await decodeData(data);
 }

@@ -8,8 +8,9 @@ export async function optimize(cmp: BinManager) {
     const collections = cmp.openResult.collections;
 
     const allData = new Map<string, Buffer>();
-    for (const { name, offset, length } of collections) {
-        const data = await readData(cmp.fd, offset, length);
+    for (const { name, offset } of collections) {
+        const len = await readData(cmp.fd, offset, 4);
+        const data = await readData(cmp.fd, offset + 4, len.readInt32LE(0));
         allData.set(name, data);
     }
 
@@ -20,12 +21,14 @@ export async function optimize(cmp: BinManager) {
 
     let offset = roundUpCapacity(cmp.openResult, cmp.openResult.payloadLength + HEADER_SIZE) + cmp.openResult.blockSize;
     for (const [collection, data] of allData) {
-        const len = roundUpCapacity(cmp.openResult, data.length);
-        await writeData(cmp.fd, offset, data, len);
+        const len = roundUpCapacity(cmp.openResult, data.length + 4);
+        const buf = Buffer.alloc(4);
+        buf.writeInt32LE(len, 0);
+        await writeData(cmp.fd, offset, buf, 4);
+        await writeData(cmp.fd, offset + 4, data, len);
         cmp.openResult.collections.push({
             name: collection,
             offset,
-            length: data.length,
             capacity: len
         });
         offset += len;

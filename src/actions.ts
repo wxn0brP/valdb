@@ -80,7 +80,7 @@ export class BinFileAction extends dbActionBase {
             sortAsc = true
         } = dbFindOpts;
 
-        await this.checkCollection(collection);
+        await this.checkCollection(arguments[0]);
 
         let data = await this.fileCpu.find(collection, search, context, findOpts) as Data[];
 

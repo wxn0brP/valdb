@@ -18,7 +18,6 @@ async function safeOpen(path: string) {
 export interface CollectionMeta {
     name: string;
     offset: number;
-    length: number;
     capacity: number;
 }
 
@@ -26,7 +25,17 @@ export class BinManager {
     public fd: null | FileHandle = null;
     public openResult: OpenFileResult;
 
-    constructor(public path: string, public preferredSize: number = 256) { }
+    /**
+     * Constructs a new BinManager instance.
+     * @param path - File path.
+     * @param [preferredSize=256] - The preferred block size for the database. Must be a positive number (preferredSize > 0)
+     * @throws If the path is not provided, or the preferred size is
+     * not a positive number.
+     */
+    constructor(public path: string, public preferredSize: number = 256) {
+        if (!path) throw new Error("Path not provided");
+        if (!preferredSize || preferredSize <= 0) throw new Error("Preferred size not provided");
+    }
 
     async open() {
         this.fd = await safeOpen(this.path);

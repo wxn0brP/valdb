@@ -103,7 +103,7 @@ export async function readHeaderPayload(fd: FileHandle, result: OpenFileResult) 
 
 export function getHeaderPayload(result: OpenFileResult) {
     return {
-        c: result.collections.map(({ name, offset, length, capacity }) => ([name, offset, length, capacity])),
+        c: result.collections.map(({ name, offset, capacity }) => ([name, offset, capacity])),
         f: result.freeList.map(({ offset, capacity }) => [offset, capacity]),
     };
 }
