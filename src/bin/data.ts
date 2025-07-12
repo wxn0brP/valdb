@@ -9,25 +9,25 @@ export function findCollection(result: OpenFileResult, name: string): Collection
 }
 
 export async function findFreeSlot(result: OpenFileResult, size: number): Promise<OpenFileResult["freeList"][number] | undefined> {
-    await _log("Finding free slot for size:", size);
+    await _log(6, "Finding free slot for size:", size);
     const idx = result.freeList.findIndex(f => f.capacity >= size);
 
     if (idx === -1) {
-        await _log("No suitable free slot found.");
+        await _log(6, "No suitable free slot found.");
         return undefined;
     }
 
     const slot = result.freeList[idx];
-    await _log("Free slot found at index:", idx, "with capacity:", slot.capacity);
+    await _log(6, "Free slot found at index:", idx, "with capacity:", slot.capacity);
 
     result.freeList.splice(idx, 1);
-    await _log("Slot removed from freeList:", slot);
+    await _log(6, "Slot removed from freeList:", slot);
 
     return slot;
 }
 
 export async function writeLogic(fd: FileHandle, result: OpenFileResult, collection: string, data: object[]) {
-    await _log("Writing data to collection:", collection);
+    await _log(3, "Writing data to collection:", collection);
 
     const existingCollection = findCollection(result, collection);
     const encoded = Buffer.from(await encodeData(data));
@@ -40,15 +40,15 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
 
     const collision = detectCollisions(result, offset, capacity, [collection]);
     if (collision || !existingCollection) {
-        if (collision) await _log("Collision detected");
+        if (collision) await _log(2, "Collision detected");
         const slot = await findFreeSlot(result, capacity);
         if (slot) {
             offset = slot.offset;
-            await _log("Found free slot at offset:", offset);
+            await _log(4, "Found free slot at offset:", offset);
         } else {
             offset = result.fileSize;
             result.fileSize += capacity;
-            await _log("No free slot found, appending at offset:", offset);
+            await _log(4, "No free slot found, appending at offset:", offset);
         }
 
         if (!existingCollection) {
@@ -61,7 +61,7 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
             })
         }
 
-        await _log("Collection written");
+        await _log(3, "Collection written");
         await saveHeaderAndPayload(fd, result);
     }
 
@@ -76,7 +76,7 @@ export async function writeLogic(fd: FileHandle, result: OpenFileResult, collect
             return c;
         });
         await saveHeaderAndPayload(fd, result);
-        await _log("Capacity exceeded");
+        await _log(2, "Capacity exceeded");
     }
 }
 

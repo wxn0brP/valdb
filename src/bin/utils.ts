@@ -9,31 +9,31 @@ export async function writeData(fd: FileHandle, offset: number, data: Buffer, ca
     if (!fd) throw new Error("File not open");
     if (data.length > capacity) throw new Error("Data size exceeds capacity");
 
-    await _log("Writing data at offset:", offset, "length:", data.length, "capacity:", capacity);
+    await _log(6, "Writing data at offset:", offset, "length:", data.length, "capacity:", capacity);
 
     const { bytesWritten } = await fd.write(data, 0, data.length, offset);
-    await _log("Bytes written:", bytesWritten);
+    await _log(5, "Bytes written:", bytesWritten);
 
     if (data.length < capacity) {
         const pad = Buffer.alloc(capacity - data.length, 0);
         const padStart = offset + data.length;
-        await _log("Padding with zeros:", pad.length, "at offset:", padStart);
+        await _log(6, "Padding with zeros:", pad.length, "at offset:", padStart);
         const { bytesWritten: padBytesWritten } = await fd.write(pad, 0, pad.length, padStart);
-        await _log("Bytes written:", padBytesWritten);
+        await _log(6, "Bytes written:", padBytesWritten);
     }
 
-    await _log("Data written");
+    await _log(6, "Data written");
 }
 
 export async function readData(fd: FileHandle, offset: number, length: number): Promise<Buffer> {
     if (!fd) throw new Error("File not open");
 
-    await _log("Reading data from offset:", offset, "length:", length);
+    await _log(6, "Reading data from offset:", offset, "length:", length);
 
     const buf = Buffer.alloc(length);
     const { bytesRead } = await fd.read(buf, 0, length, offset);
 
-    await _log("Bytes read:", bytesRead);
+    await _log(5, "Bytes read:", bytesRead);
 
     return buf;
 }
@@ -66,7 +66,7 @@ export function optimizeFreeList(blocks: Block[]): Block[] {
 }
 
 function checkCollection(start1: number, end1: number, start2: number, end2: number) {
-    _log("Checking collection:", start1, end1, start2, end2);
+    _log(6, "Checking collection:", start1, end1, start2, end2);
     return start1 < end2 && start2 < end1;
 }
 

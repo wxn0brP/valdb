@@ -9,7 +9,7 @@ async function safeOpen(path: string) {
         await access(path, constants.F_OK);
         return await open(path, "r+");
     } catch {
-        _log("Creating new file");
+        _log(1, "Creating new file");
         return await open(path, "w+");
     }
 }
