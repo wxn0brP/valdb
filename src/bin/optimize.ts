@@ -29,7 +29,7 @@ export async function optimize(cmp: BinManager) {
         await _log(6, "Writing optimized collection:", collection);
         const len = roundUpCapacity(cmp.openResult, data.length + 4);
         const buf = Buffer.alloc(4);
-        buf.writeInt32LE(len, 0);
+        buf.writeInt32LE(data.length, 0);
         await writeData(cmp.fd, offset, buf, 4);
         await writeData(cmp.fd, offset + 4, data, len);
         cmp.openResult.collections.push({
