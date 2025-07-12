@@ -1,10 +1,10 @@
-import { CustomFileCpu, genId } from "@wxn0brp/db";
-import dbActionBase from "@wxn0brp/db/base/actions.js";
-import Data from "@wxn0brp/db/types/data.js";
-import FileCpu from "@wxn0brp/db/types/fileCpu.js";
-import { VQuery } from "@wxn0brp/db/types/query.js";
-import { DbOpts } from "@wxn0brp/db/types/options.js";
-import { compareSafe } from "@wxn0brp/db/utils/sort.js";
+import { CustomFileCpu, genId } from "@wxn0brp/db-core";
+import dbActionBase from "@wxn0brp/db-core/base/actions";
+import Data from "@wxn0brp/db-core/types/data";
+import FileCpu from "@wxn0brp/db-core/types/fileCpu";
+import { DbOpts } from "@wxn0brp/db-core/types/options";
+import { VQuery } from "@wxn0brp/db-core/types/query";
+import { compareSafe } from "@wxn0brp/db-core/utils/sort";
 import { BinManager } from "./bin";
 
 export class BinFileAction extends dbActionBase {

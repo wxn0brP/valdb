@@ -1,5 +1,5 @@
 import { FileHandle } from "fs/promises";
-import { CollectionMeta } from ".";
+import { CollectionMeta, Options } from ".";
 import { findFreeSlot } from "./data";
 import { decodeData, encodeData } from "./format";
 import { HEADER_SIZE, VERSION } from "./static";
@@ -19,7 +19,7 @@ export interface OpenFileResult {
     blockSize: number;
 }
 
-export async function openFile(fd: FileHandle, preferredSize: number = 256) {
+export async function openFile(fd: FileHandle, options: Options) {
     const stats = await fd.stat();
     const fileSize = stats.size;
     await _log("File size:", fileSize);
@@ -30,7 +30,7 @@ export async function openFile(fd: FileHandle, preferredSize: number = 256) {
         fileSize,
         payloadLength: 0,
         payloadOffset: 0,
-        blockSize: preferredSize
+        blockSize: options.preferredSize ?? 256
     }
 
     if (fileSize < HEADER_SIZE) {

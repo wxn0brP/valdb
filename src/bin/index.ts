@@ -1,13 +1,12 @@
-import { access, FileHandle, constants as fsConstants, open } from "fs/promises";
+import { access, FileHandle, constants, open } from "fs/promises";
 import { readLogic, writeLogic } from "./data";
 import { openFile, OpenFileResult } from "./head";
 import { optimize } from "./optimize";
 import { removeCollection } from "./rm";
 
-
 async function safeOpen(path: string) {
     try {
-        await access(path, fsConstants.F_OK);
+        await access(path, constants.F_OK);
         return await open(path, "r+");
     } catch {
         _log("Creating new file");
@@ -21,9 +20,14 @@ export interface CollectionMeta {
     capacity: number;
 }
 
+export interface Options {
+    preferredSize: number;
+}
+
 export class BinManager {
     public fd: null | FileHandle = null;
     public openResult: OpenFileResult;
+    public options: Options;
 
     /**
      * Constructs a new BinManager instance.
@@ -32,14 +36,20 @@ export class BinManager {
      * @throws If the path is not provided, or the preferred size is
      * not a positive number.
      */
-    constructor(public path: string, public preferredSize: number = 256) {
+    constructor(public path: string, options?: Partial<Options>) {
         if (!path) throw new Error("Path not provided");
-        if (!preferredSize || preferredSize <= 0) throw new Error("Preferred size not provided");
+
+        this.options = {
+            preferredSize: 256,
+            ...options
+        }
+        
+        if (!this.options.preferredSize || this.options.preferredSize <= 0) throw new Error("Preferred size not provided");
     }
 
     async open() {
         this.fd = await safeOpen(this.path);
-        this.openResult = await openFile(this.fd, this.preferredSize);
+        this.openResult = await openFile(this.fd, this.options);
     }
 
     async close() {
