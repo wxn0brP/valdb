@@ -4,6 +4,7 @@ import { findFreeSlot } from "./data";
 import { decodeData, encodeData } from "./format";
 import { HEADER_SIZE, VERSION } from "./static";
 import { detectCollisions, pushToFreeList, roundUpCapacity, writeData } from "./utils";
+import { getFileCrc } from "../crc32";
 
 export interface Block {
     offset: number;
@@ -17,6 +18,7 @@ export interface OpenFileResult {
     payloadLength: number;
     payloadOffset: number;
     blockSize: number;
+    options: Options;
 }
 
 export async function openFile(fd: FileHandle, options: Options) {
@@ -30,7 +32,8 @@ export async function openFile(fd: FileHandle, options: Options) {
         fileSize,
         payloadLength: 0,
         payloadOffset: 0,
-        blockSize: options.preferredSize ?? 256
+        blockSize: options.preferredSize ?? 256,
+        options
     }
 
     if (fileSize < HEADER_SIZE) {
@@ -62,6 +65,20 @@ export async function openFile(fd: FileHandle, options: Options) {
     const blockSize = headerBuf.readUInt32LE(12);
     result.blockSize = blockSize;
     await _log(2, "Block size:", blockSize);
+
+    if (options.crc) {
+        const { computedCrc, storedCrc } = await getFileCrc(fd);
+        const validCrc = computedCrc === storedCrc || storedCrc === 0;
+        await _log(2, "CRC:", computedCrc, "Needed CRC:", storedCrc, "Valid:", validCrc);
+        if (storedCrc === 0) {
+            await _log(1, "Warning: CRC is zero, CRC will not be checked");
+        }
+        if (!validCrc) {
+            await _log(0, "err", "Invalid CRC");
+            if (options.crc === 2)  
+                throw new Error("Invalid CRC");
+        }
+    }
 
     if (payloadOffset + payloadLength > fileSize - HEADER_SIZE) {
         await _log(6, "err", "Invalid payload length");
@@ -130,6 +147,11 @@ export async function saveHeaderAndPayload(fd: FileHandle, result: OpenFileResul
     headerBuf.writeUInt32LE(result.payloadOffset, 8);
     headerBuf.writeUInt32LE(result.blockSize, 12);
     result.payloadLength = payloadBuf.length;
+
+    if (result.options.crc) {
+        const { computedCrc: crc } = await getFileCrc(fd);
+        headerBuf.writeUInt32LE(crc, 16);
+    }
 
     // TODO add magic, flags, etc. here
 

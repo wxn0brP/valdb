@@ -3,6 +3,7 @@ import { readLogic, writeLogic } from "./data";
 import { openFile, OpenFileResult } from "./head";
 import { optimize } from "./optimize";
 import { removeCollection } from "./rm";
+import { getFileCrc } from "../crc32";
 
 async function safeOpen(path: string) {
     try {
@@ -22,6 +23,12 @@ export interface CollectionMeta {
 
 export interface Options {
     preferredSize: number;
+    /**
+     * 0 - crc off
+     * 1 - warn if error
+     * 2 - throw if error
+     */
+    crc: number;
 }
 
 export class BinManager {
@@ -41,6 +48,7 @@ export class BinManager {
 
         this.options = {
             preferredSize: 256,
+            crc: 2,
             ...options
         }
         
@@ -54,6 +62,14 @@ export class BinManager {
 
     async close() {
         if (this.fd) {
+            const buff = Buffer.alloc(8);
+            if (this.options.crc) {
+                const { computedCrc: crc } = await getFileCrc(this.fd);
+                buff.writeUInt32LE(crc, 0);
+            } else {
+                buff.fill(0, 0, 8);
+            }
+            await this.fd.write(buff, 0, 8, 16);
             await this.fd.close();
             this.fd = null;
         }
